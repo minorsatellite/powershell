@@ -1,0 +1,1 @@
+﻿Start-WssConfigurationService -CompanyName StandardVision -ComputerName CCS-1301 -DNSName domain1301.lan -NetbiosName domain1301 -setting none -NewAdminCredential 1301_admin
