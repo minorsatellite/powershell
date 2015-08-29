@@ -2,7 +2,7 @@
 ## Script created by Jeff Yana, August 6 2015, for Standard Vision LLC
 ##
 ## What this script does:  
-## On an existing Windows 2012 Server (R2) that has previously been promoted to Domain Controller and     
+## On an existing Windows 2012 Server (R2) previously been promoted to Domain Controller and     
 ## hosting a valid Windows 2102 Domain/Forest with supporting DNS services, this script does the following: 
 ## adds the additional role of DHCP server; adds and configures all necessary networking (including a Teamed (virtual) interface) 
 ## adds and configures the missing PTR (reverse) zone and select A and PTR Resource Records.
@@ -14,25 +14,29 @@
 ##
 ## System Requirements: It is assumed that the subject server has been previously promoted to the role of domain controller either  
 ## manually using the Windows Server Essential 2012 Configuration Wizard (on Windows 2012 Essential systems), or DCPROMO mechanism on  
-## Windows Server Standard or Enterprise. The preferred method is by using the custom created Powershell script ( titled "start_wss_config_service") 
+## Windows Server Standard or Enterprise. The preferred and supported and tested method is by using the custom created Powershell script ( titled "start_wss_config_service") 
 ## especially create for Standard Vision.
 ## 
 
 
 ##
-## Required Fixes:
-## - Script does not currently create the Reverse DNS correctly, adding a trailing "0." to the zone name.
-##   As a consequence, all PTR records get added incorrectly.
+## REQUIRED FIXES:
+## 
 ## - Add a Scope Option for DNS Servers for DHCP
+##
 ##
 
 ##
 ## TO DO:
 ## 
+## - Add domain admin (xxx_admin) to custom Server Administrators, Network Administrators & Systems groups
 ## - Add logic to aggregate multiple group-adds when setting up new users using, for example, a comma separated list
 ## - Add A Records for all switches and network devices, players etc. Have a manual method to add them during initial setup instead of hard-coded. Same for PTR records.
 ## - Put the DHCP role add into a loop
-## - Add additional A, PTR and alias DNS records (for devices that cannot join the domain)
+## - Add additional A, PTR and alias DNS records (for devices that cannot join the domain,ex. mail, ccs-idrac, player1-idrac, player2-idrac, ups1, ups2 ... )
+## - Automate setup of clocks, 1 clock for local time and the other for Los Angeles Time
+## - Open ports firewall 8000-8002 for FSSO, In and Out
+## - Add Telnet Client
 ##
 
 Import-Module ActiveDirectory
@@ -92,44 +96,54 @@ Write-Host
 
 Start-Sleep -s 2
 
+#del Variable:\projCode
 $projCode = Read-Host "`nPlease enter the Project Code for this install/site. `nExample: 1301"
 Write-Host
 Write-Host 'You selected:' $projCode
 
-$netID = Read-Host "`nPlease enter the IPv4 Network ID of your LAN. `nExample: 10.1.NN.0"
-$netID += "/25"
+#del Variable:\fullNetID
+$netID = Read-Host "`nPlease enter the IPv4 **Network Number** of your LAN. `nExample: 10.1.nn"
+$fullNetID = $netID + '.0/25'
 Write-Host
-Write-Host 'You selected:' $netID
+Write-Host 'You selected:' $fullNetID
 
-$IPv4addr = Read-Host "`nPlease enter the IPv4 network address of this host. `nExample: 10.1.33.NN"
+#del Variable:\IPv4addr
+$IPv4addr = Read-Host "`nPlease enter the IPv4 **Network Address** of this host. `nExample: $netID.nn"
 Write-Host
 Write-Host 'You selected:' $IPv4addr
 
-$subnetMask = Read-Host "`nPlease enter the Subnet Mask for network address: $IPv4addr. `nExample: 255.255.255.NNN"
+#del Variable:\subnetMask
+$subnetMask = Read-Host "`nPlease enter the **Subnet Mask** for network address: $IPv4addr. `nExample: 255.255.255.nnn"
 Write-Host
 Write-Host 'You selected:' $subnetMask
 
-$router = Read-Host "`nPlease enter the IPv4 Gateway address. `nExample: 10.1.NN.1"
+#del Variable:\router
+$router = Read-Host "`nPlease enter the IPv4 **Gateway Address**. `nExample: $netID.1"
 Write-Host
 Write-Host 'You selected:' $router
 
-$scopeID = Read-Host "`nThis systems will be shortly be promoted to the role of DHCP server.`nPlease enter the desired DHCP scope for this server. `nExample: 10.1.NN.0"
+#del Variable:\scopeID
+$scopeID = Read-Host "`nThis systems will be shortly be promoted to the role of DHCP server.`n`nPlease enter the desired **DHCP Scope** for this server. `nExample: $netID.0"
 Write-Host
 Write-Host 'You selected:' $scopeID
 
-$dhcpStart = Read-Host "`nPlease enter the Starting DHCP IP address for scope ID $scopeID.`nExample: 10.1.NN.NN"
+#del Variable:\dhcpStart
+$dhcpStart = Read-Host "`nPlease enter the **Starting** DHCP IP Address for Scope ID $scopeID.`nExample: $netID.nn"
 Write-Host
 Write-Host 'You selected:' $dhcpStart
 
-$dhcpEnd = Read-Host "`nPlease enter the Ending DHCP IP address for scope ID $scopeID.`nExample: 10.1.NN.NNN"
+#del Variable:\dhcpEnd
+$dhcpEnd = Read-Host "`nPlease enter the **Ending** DHCP IP Address for scope ID $scopeID.`nExample: $netID.nnn"
 Write-Host
 Write-Host 'You selected:' $dhcpEnd
 
-$rDnsPrefix = Read-Host "`nPlease enter the prefix of the Reverse DNS Zone.`nExample: 0.NN.1.10"
+#del Variable:\rDnsPrefix
+$rDnsPrefix = Read-Host "`nPlease enter the **Reverse DNS Zone Prefix**.`nExample: nn.1.10"
 Write-Host
 Write-Host You entered: $rDnsPrefix
 
-$lan01 = Read-Host "`nPlease enter the IPv4 Address of Lan01.`nExample: 10.1.NN.2"
+#del Variable:\lan01
+$lan01 = Read-Host "`nPlease enter the IPv4 Address for Lan01.`nExample: 10.1.NN.2"
 Write-Host
 Write-Host You entered: $lan01
 
@@ -496,7 +510,7 @@ Write-Host
 
 ## Add Reverse DNS Zone
 
-Add-DnsServerPrimaryZone -NetworkID $netID -ReplicationScope Forest
+Add-DnsServerPrimaryZone -NetworkID $fullNetID -ReplicationScope Forest
 
 ## Add Forward "A" Records
 
